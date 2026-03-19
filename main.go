@@ -175,6 +175,7 @@ func toolDefinitions(allowMutations bool) []toolDef {
 			Name: "list_entities", Description: "List all entities or filter by domain (e.g. light, sensor, switch, automation)",
 			InputSchema: schema(map[string]any{
 				"domain": prop{Type: "string", Description: "Filter by domain (e.g. 'light', 'sensor', 'switch', 'climate', 'automation')"},
+				"search": prop{Type: "string", Description: "Filter entities by name/id containing this text (case-insensitive)"},
 			}, nil),
 		},
 		{
@@ -277,7 +278,9 @@ func callTool(ha *HAClient, cfg *Config, params callToolParams) (string, bool) {
 			return err.Error(), true
 		}
 		domain := str("domain")
-		if domain == "" {
+		search := strings.ToLower(str("search"))
+
+		if domain == "" && search == "" {
 			// Return summary: count per domain
 			var states []struct {
 				EntityID string `json:"entity_id"`
@@ -292,20 +295,46 @@ func callTool(ha *HAClient, cfg *Config, params callToolParams) (string, bool) {
 			}
 			return prettyJSON(counts), false
 		}
-		// Filter by domain
-		var states []json.RawMessage
-		json.Unmarshal(data, &states)
-		var filtered []json.RawMessage
-		for _, s := range states {
-			var e struct {
-				EntityID string `json:"entity_id"`
-			}
-			json.Unmarshal(s, &e)
-			if strings.HasPrefix(e.EntityID, domain+".") {
-				filtered = append(filtered, s)
-			}
+
+		// Parse all states and filter
+		var states []struct {
+			EntityID   string         `json:"entity_id"`
+			State      string         `json:"state"`
+			Attributes map[string]any `json:"attributes"`
 		}
-		return prettyJSON(filtered), false
+		json.Unmarshal(data, &states)
+
+		type compactEntity struct {
+			EntityID     string `json:"entity_id"`
+			State        string `json:"state"`
+			FriendlyName string `json:"friendly_name,omitempty"`
+			DeviceClass  string `json:"device_class,omitempty"`
+			Unit         string `json:"unit,omitempty"`
+		}
+
+		var results []compactEntity
+		for _, s := range states {
+			if domain != "" && !strings.HasPrefix(s.EntityID, domain+".") {
+				continue
+			}
+			friendlyName, _ := s.Attributes["friendly_name"].(string)
+			if search != "" {
+				if !strings.Contains(strings.ToLower(s.EntityID), search) &&
+					!strings.Contains(strings.ToLower(friendlyName), search) {
+					continue
+				}
+			}
+			deviceClass, _ := s.Attributes["device_class"].(string)
+			unit, _ := s.Attributes["unit_of_measurement"].(string)
+			results = append(results, compactEntity{
+				EntityID:     s.EntityID,
+				State:        s.State,
+				FriendlyName: friendlyName,
+				DeviceClass:  deviceClass,
+				Unit:         unit,
+			})
+		}
+		return prettyJSON(results), false
 
 	case "get_state":
 		entityID := str("entity_id")
