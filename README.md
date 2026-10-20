@@ -75,3 +75,7 @@ cp config.example.json config.json
 ## License
 
 MIT
+
+## HTTP MCP service
+
+For the bounded Authentik-authorized HTTP service, see [http-mcp/README.md](http-mcp/README.md). Run checks with `make -C http-mcp check` and use `http-mcp/` as the Docker build context.
