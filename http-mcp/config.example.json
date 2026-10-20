@@ -1,0 +1,39 @@
+{
+  "listen": ":8080",
+  "resource_url": "https://ha.mcp.ryzhkov.dev/mcp",
+  "issuer_url": "https://auth.example/application/o/ha-mcp/",
+  "jwks_url": "https://auth.example/application/o/ha-mcp/jwks/",
+  "ha_url": "http://home-assistant:8123",
+  "backend_token_file": "/run/ha-mcp/backend-token",
+  "entities": [
+    {
+      "id": "light.qualified_lamp",
+      "name": "Qualified lamp",
+      "actions": [
+        "state.read",
+        "light.control"
+      ],
+      "control_qualified": true,
+      "brightness": {
+        "min_percent": 10,
+        "max_percent": 90
+      }
+    },
+    {
+      "id": "switch.qualified_socket",
+      "name": "Qualified socket",
+      "actions": [
+        "state.read",
+        "switch.control"
+      ],
+      "control_qualified": true
+    },
+    {
+      "id": "sensor.example_power",
+      "name": "Example power",
+      "actions": [
+        "state.read"
+      ]
+    }
+  ]
+}
